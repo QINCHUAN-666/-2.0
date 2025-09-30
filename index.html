@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>价保计算工具</title>
+<style>
+:root {
+    --main-blue: #1e88e5;
+    --main-blue-dark: #1565c0;
+    --bg-color: #f5f9ff;
+    --card-bg: rgba(255, 255, 255, 0.95);
+    --shadow: 0 8px 20px rgba(0,0,0,0.08);
+    --required: #e53935;
+}
+body {font-family: 'Microsoft YaHei', sans-serif;background: var(--bg-color);margin: 0;padding: 0;}
+header {padding: 20px;text-align: center;font-size: 22px;font-weight: 600;color: var(--main-blue-dark);}
+.tabs {display: flex;justify-content: center;gap: 10px;margin-bottom: 15px;flex-wrap:wrap;}
+.tab {padding: 8px 20px;border-radius: 30px;cursor: pointer;font-size: 14px;color: #666;transition: all 0.3s ease;}
+.tab:hover { background: rgba(30,136,229,0.08); }
+.tab.active {background: linear-gradient(135deg, var(--main-blue), var(--main-blue-dark));color: white;box-shadow: var(--shadow);}
+.container {max-width: 1000px;margin: auto;background: var(--card-bg);backdrop-filter: blur(6px);padding: 20px 30px;border-radius: 15px;box-shadow: var(--shadow);}
+label {display: block;font-size: 13px;margin-top: 12px;color: var(--main-blue-dark);font-weight: 500;}
+.required::after {content: "*";color: var(--required);margin-left: 3px;}
+input, select {width: 100%;padding: 8px 10px;margin-top: 4px;border-radius: 8px;border: 1px solid #ddd;font-size: 14px;transition: 0.3s;outline: none;background: white;box-sizing: border-box;}
+input:focus, select:focus {border-color: var(--main-blue);box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.1);}
+.inline-input {display: flex;align-items: center;gap: 4px;margin-top: 4px;}
+.inline-input input {width: 60px;}
+button {width: 100%;margin-top: 15px;padding: 10px;border: none;border-radius: 10px;background: linear-gradient(135deg, var(--main-blue), var(--main-blue-dark));color: white;font-size: 15px;font-weight: 600;cursor: pointer;transition: 0.3s;}
+button:hover {transform: translateY(-1px);box-shadow: 0 8px 20px rgba(21,101,192,0.3);}
+.result {margin-top: 12px;padding: 10px;border-radius: 8px;font-size: 14px;}
+.success {background: rgba(30,136,229,0.08);color: var(--main-blue-dark);}
+.error   {background: rgba(244,67,54,0.08);color: #c62828;}
+.date-group {
+    display: block;
+    padding: 8px 10px;
+    margin-top: 4px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background: white;
+    cursor: pointer;
+}
+.date-group:hover {
+    border-color: var(--main-blue);
+    box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.1);
+}
+.date-group input[type="date"] {
+    border: none;
+    width: 100%;
+    background: transparent;
+    cursor: pointer;
+}
+</style>
+</head>
+<body>
+<header>价保计算工具</header>
+<div class="tabs">
+    <div class="tab active" onclick="switchPlatform(this, '抖音')">抖音</div>
+    <div class="tab" onclick="switchPlatform(this, '天猫')">天猫</div>
+    <div class="tab" onclick="switchPlatform(this, '拼多多')">拼多多</div>
+    <div class="tab" onclick="switchPlatform(this, '微信')">微信</div>
+    <div class="tab" onclick="switchPlatform(this, '小红书')">小红书</div>
+    <div class="tab" onclick="switchPlatform(this, '商城')">商城</div>
+</div>
+<div class="container">
+    <h3 id="platformTitle" style="margin-top:0;color:var(--main-blue-dark)">当前平台：天猫</h3>
+    <label class="required">支付时间</label>
+    <div class="date-group" onclick="document.getElementById('orderTime').showPicker()">
+        <input type="date" id="orderTime">
+    </div>
+    <label class="required">申请价保时间</label>
+    <div class="date-group" onclick="document.getElementById('applyTime').showPicker()">
+        <input type="date" id="applyTime">
+    </div>
+    <button onclick="checkEligibility()">下一步</button>
+
+    <div id="moreFields" style="display:none;">
+        <label class="required">产品</label>
+        <select id="productSelect" onchange="updateVersionOptions()"><option value="">--选择产品--</option></select>
+        <label class="required">版本</label>
+        <select id="versionSelect" onchange="autoFillProductPrice()"><option value="">--选择版本--</option></select>
+        <label class="required">原订单商品单价 (¥)</label>
+        <input type="number" id="originalPrice" placeholder="请输入金额">
+        <label class="required">申请价保时商品单价 (¥)</label>
+        <input type="number" id="currentPrice" placeholder="请输入金额">
+        <label class="required">已退差金额 (¥)</label>
+        <input type="number" id="alreadyRefunded" placeholder="请输入金额">
+        <label>原订单是否有国补 (%)</label>
+        <select id="originalSubsidySelect" onchange="setSubsidyValue('original')">
+            <option value="no">无</option>
+            <option value="yes" selected>有</option>
+        </select>
+        <div class="inline-input"><input type="number" id="originalSubsidy" value="15"><span>%</span></div>
+        <label>申请价保时是否有国补 (%)</label>
+        <select id="currentSubsidySelect" onchange="setSubsidyValue('current')">
+            <option value="no">无</option>
+            <option value="yes" selected>有</option>
+        </select>
+        <div class="inline-input"><input type="number" id="currentSubsidy" value="15"><span>%</span></div>
+        <button onclick="calculate()">计算退差金额并生成话术</button>
+    </div>
+    <div id="result" class="result" style="display:none;"></div>
+</div>
+
+<script>
+const DEFAULT_SUBSIDY = 15;
+let currentPlatform = '天猫';
+
+
+const productPriceRules = {
+    "Mini 4 Pro": {
+        "单机-普通遥控器": { All: 4070 },
+        "单机-带屏遥控器": { All: 5090 },
+        "套装-带屏遥控器": { All: 5590 },
+        "长续航-带屏遥控器": { All: 5910 }
+    },
+    "Avata 2": {
+        "DJI Avata 2 畅飞套装 (单电池版)": { 拼多多: 5089.80, 微信: 5089.80, 小红书: 5089.80 },
+        "DJI Avata 2 畅飞套装 (三电池版)": { 拼多多: 5939.80, 微信: 5939.80, 小红书: 5939.80 },
+        "DJI Avata 2 -单机版": { 拼多多: 2539.80, 微信: 2539.80, 小红书: 2539.80 }
+    },
+    "Mini 3": {
+        "普通版": { All: 2088 },
+        "带屏版": { All: 2788 },
+        "带屏套": { All: 3488 }
+    },
+    "Mini 4K": {
+        "单机": { All: 1499 },
+        "双电": { All: 1848 },
+        "畅飞套": { All: 2099 }
+    },
+    "Neo": {
+        "DJI Neo 单机": { All: 1099 },
+        "DJI Neo 畅飞套装": { All: 1949 },
+        "DJI Neo 体感套装": { All: 2969 }
+    },
+    "OA4": {
+        "OA4 标准套装": { All: 1249 },
+        "OA4 全能套装": { All: 1949 }
+    },
+    "OA5": {
+        "Action 5 Pro 标准套装": { All: 2198 },
+        "Action 5 Pro 畅拍套装": { All: 2898 }
+    },
+    "Osmo 360": {
+        "Osmo 360 标准": { 天猫: 2822, "京东自营": 2822, "京东POP": 2822, 抖音: 2822, 商城: 2822, 拼多多: 2398.70, 微信: 2398.70, 小红书: 2398.70 },
+        "Osmo 360 畅拍套装": { 天猫: 3575, "京东自营": 3575, "京东POP": 3575, 抖音: 3575, 商城: 3575, 拼多多: 3038.75, 微信: 3038.75, 小红书: 3038.75 }
+    },
+    "OP3": {
+        "Osmo Pocket 3 单机": { All: 2799 },
+        "Osmo Pocket 3 全能套装": { All: 3599 }
+    },
+    "OM 7P": {
+        "OM 7P": { All: 699 }
+    },
+    "OM 7": {
+        "OM 7": { All: 399 }
+    },
+    "OM SE": {
+        "OM SE": { All: 299 }
+    },
+    "RS3 Mini": {
+        "DJI RS3 Mini": { 拼多多: 1104.15, 微信: 1104.15, 小红书: 1104.15 }
+    },
+    "RS4 Mini": {
+        "DJI RS 4 Mini": { 拼多多: 1699.15, 微信: 1699.15, 小红书: 1699.15 },
+        "DJI RS 4 Mini Combo": { 拼多多: 2124.15, 微信: 2124.15, 小红书: 2124.15 }
+    },
+    "RS4": {
+        "DJI RS 4": { 拼多多: 2549.15, 微信: 2549.15, 小红书: 2549.15 },
+        "DJI RS 4 Combo": { 拼多多: 3314.15, 微信: 3314.15, 小红书: 3314.15 }
+    },
+    "Mic Mini": {
+        "两发一收，带充电盒": { 天猫: 589, "京东自营": 589, "京东POP": 589, 抖音: 589, 商城: 589, 拼多多: 500.65, 微信: 500.65, 小红书: 500.65 },
+        "一发一收": { 天猫: 319, "京东自营": 319, "京东POP": 319, 抖音: 319, 商城: 319, 拼多多: 271.15, 微信: 271.15, 小红书: 271.15 },
+        "发射器": { 天猫: 179, "京东自营": 179, "京东POP": 179, 抖音: 179, 商城: 179, 拼多多: 152.15, 微信: 152.15, 小红书: 152.15 }
+    },
+    "Mic": {
+        "DJI Mic（两发一收，含充电盒）": { 天猫: 1169, "京东自营": 1169, "京东POP": 1169, 抖音: 1169, 商城: 1169, 拼多多: 993.65, 微信: 993.65, 小红书: 993.65 },
+        "DJI Mic（一发一收）": { 天猫: 699, "京东自营": 699, "京东POP": 699, 抖音: 699, 商城: 699, 拼多多: 594.15, 微信: 594.15, 小红书: 594.15 }
+    },
+    "Mic 2": {
+        "DJI Mic（两发一收，含充电盒）": { 拼多多: 1444.15, 微信: 1444.15, 小红书: 1444.15 },
+        "DJI Mic（一发一收）": { 拼多多: 934.15, 微信: 934.15, 小红书: 934.15 },
+        "DJI Mic（两发一收，含充电盒 mini版）": { 拼多多: 424.15, 微信: 424.15, 小红书: 424.15 }
+    },
+    "Power": {
+        "Power 1000": { All: 2499 },
+        "Power 1000 V2": { All: 2599 },
+        "Power 2000": { All: 5199 }
+    }
+};
+
+
+const scriptRules = {
+  "抖音": {
+    no_no: `原订单为非国补链接：引导客户申请仅退款>退运费    <br>    
+<br>
+亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，您可以按照如下方式提交退差申请哈
+<br><br>
+申请方式：<br>
+①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+<br><br>
+温馨提示：因国家及政府发放补贴、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内
+`,
+    no_yes: `原订单为非国补链接：引导客户申请仅退款>退运费        
+<br><br>
+亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，您可以按照如下方式提交退差申请哈
+<br><br>
+申请方式：<br>
+①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+<br><br>
+温馨提示：因国家及政府发放补贴、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内
+`,
+    yes_yes: `原订单为国补链接：提供小额打款退差<br><br>
+
+亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次价保金额为 {{amount}} 元，预计将在  7 天内 由专人为您操作小额打款退差，还请您耐心等待呢，感谢您的支持~
+<br><br>
+温馨提示：因国家及政府发放补贴、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内`,
+    yes_no: `原订单为国补链接：提供小额打款退差
+<br><br>
+亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次价保金额为 {{amount}} 元，预计将在  7 天内 由专人为您操作小额打款退差，还请您耐心等待呢，感谢您的支持~
+<br><br>
+温馨提示：因国家及政府发放补贴、国家及政府补贴波动导致的价差、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内`,
+    refundZero: `亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。查看到您之前购买商品的价格很实惠，本次不涉及价保哦~
+<br><br>
+温馨提示：因国家及政府发放补贴、国家及政府补贴波动导致的价差、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内`
+  },
+  "商城": {
+    no_no: `引导客户申请仅退款>退运费    
+<br><br>
+亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，
+您可以进入「我的订单>申请售后>仅退款>退差价」申请价保。差价将会在2-7个工作日原路退还到您的支付账户，请您留意查收哦~
+<br><br>
+温馨提示：因国家及政府发放补贴导致的价差不在价保范围内
+<br><br>
+
+注：有赞商城非国补订单，使用主动退款退差价`,
+    no_yes: `引导客户申请仅退款>退运费    
+<br><br>
+亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，
+您可以进入「我的订单>申请售后>仅退款>退差价」申请价保。差价将会在2-7个工作日原路退还到您的支付账户，请您留意查收哦~
+<br><br>
+温馨提示：因国家及政府发放补贴导致的价差不在价保范围内
+
+<br><br>
+注：有赞商城非国补订单，使用主动退款退差价`,
+    yes_yes: `仅有赞商城及购机通涉及国补，如涉及价保退差，需联系服务商退差`,
+    yes_no: `仅有赞商城及购机通涉及国补，如涉及价保退差，需联系服务商退差`,
+    refundZero: `亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。查看到您之前购买商品的价格很实惠，本次不涉及价保哦~
+<br><br>
+温馨提示：因国家及政府发放补贴、国家及政府补贴波动导致的价差不在价保范围内`,
+  },
+  "拼多多": {
+    no_no: `店铺目前不涉及国补：引导客户申请仅退款>退运费        
+<br><br>
+亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，您可以按照如下方式提交退差申请哈
+<br><br>
+申请方式：<br>
+①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可<br><br>
+
+温馨提示：因国家及政府发放补贴、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内
+`,
+    no_yes: `店铺目前不涉及国补：引导客户申请仅退款>退运费        
+<br><br>
+亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，您可以按照如下方式提交退差申请哈
+<br><br>
+申请方式：<br>
+①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可<br><br>
+
+温馨提示：因国家及政府发放补贴、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内
+`,
+    yes_yes: `店铺目前不涉及国补：引导客户申请仅退款>退运费        
+<br><br>
+亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，您可以按照如下方式提交退差申请哈
+<br><br>
+申请方式：<br>
+①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可<br><br>
+
+温馨提示：因国家及政府发放补贴、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内
+`,
+    yes_no: `店铺目前不涉及国补：引导客户申请仅退款>退运费        
+<br><br>
+亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，您可以按照如下方式提交退差申请哈
+<br><br>
+申请方式：<br>
+①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可<br><br>
+
+温馨提示：因国家及政府发放补贴、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内
+`,
+    refundZero: `亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。查看到您之前购买商品的价格很实惠，本次不涉及价保哦~
+
+温馨提示：因国家及政府发放的补贴、国家及政府补贴波动导致的价差、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内`,
+  },
+
+
+
+  "微信": {        no_no: `店铺目前不涉及国补：引导客户申请仅退款>退运费        
+<br><br>
+亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，您可以按照如下方式提交退差申请哈
+<br><br>
+申请方式：<br>
+①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可<br><br>
+
+温馨提示：因国家及政府发放补贴、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内
+`,
+    no_yes: `店铺目前不涉及国补：引导客户申请仅退款>退运费        
+<br><br>
+亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，您可以按照如下方式提交退差申请哈
+<br><br>
+申请方式：<br>
+①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可<br><br>
+
+温馨提示：因国家及政府发放补贴、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内
+`,
+    yes_yes: `店铺目前不涉及国补：引导客户申请仅退款>退运费        
+<br><br>
+亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，您可以按照如下方式提交退差申请哈
+<br><br>
+申请方式：<br>
+①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可<br><br>
+
+温馨提示：因国家及政府发放补贴、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内
+`,
+    yes_no: `店铺目前不涉及国补：引导客户申请仅退款>退运费        
+<br><br>
+亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，您可以按照如下方式提交退差申请哈
+<br><br>
+申请方式：<br>
+①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可<br><br>
+
+温馨提示：因国家及政府发放补贴、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内
+`,
+    refundZero: `亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。查看到您之前购买商品的价格很实惠，本次不涉及价保哦~
+
+温馨提示：因国家及政府发放的补贴、国家及政府补贴波动导致的价差、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内`,
+  },
+
+  "小红书": {        no_no: `店铺目前不涉及国补：引导客户申请仅退款>退运费        
+<br><br>
+亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，您可以按照如下方式提交退差申请哈
+<br><br>
+申请方式：<br>
+①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可<br><br>
+
+温馨提示：因国家及政府发放补贴、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内
+`,
+    no_yes: `店铺目前不涉及国补：引导客户申请仅退款>退运费        
+<br><br>
+亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，您可以按照如下方式提交退差申请哈
+<br><br>
+申请方式：<br>
+①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可<br><br>
+
+温馨提示：因国家及政府发放补贴、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内
+`,
+    yes_yes: `店铺目前不涉及国补：引导客户申请仅退款>退运费        
+<br><br>
+亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，您可以按照如下方式提交退差申请哈
+<br><br>
+申请方式：<br>
+①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可<br><br>
+
+温馨提示：因国家及政府发放补贴、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内
+`,
+    yes_no: `店铺目前不涉及国补：引导客户申请仅退款>退运费        
+<br><br>
+亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，您可以按照如下方式提交退差申请哈
+<br><br>
+申请方式：<br>
+①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可<br><br>
+
+温馨提示：因国家及政府发放补贴、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内
+`,
+    refundZero: `亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。查看到您之前购买商品的价格很实惠，本次不涉及价保哦~
+
+温馨提示：因国家及政府发放的补贴、国家及政府补贴波动导致的价差、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内`,
+  },
+
+  "天猫": {
+    no_no: `引导客户申请一键价保<br>
+【话术】亲亲，咱们店铺商品是有参与平台价保服务的，查看您的订单目前符合价保，您可以进入：手机淘宝搜索【价保】进入价保中心，一键申请价保哦
+<br><br>
+温馨提示：因国家及政府发放的补贴、平台红包（含消费券）、运费、天猫购物券、天猫积分、淘金币抵扣、限量发放的购物券或单品补贴，平台官方补贴（含百亿补贴）等非由本店铺发放的优惠政策导致的价格差异不在价保范围内
+`,
+    no_yes: `1. 引导客户申请一键价保<br><br>
+【话术】亲亲，咱们店铺商品是有参与平台价保服务的，查看您的订单目前符合价保，您可以进入：手机淘宝搜索【价保】进入价保中心，一键申请价保哦
+<br><br>
+温馨提示：国家补贴、平台满减活动、优惠券等不包含在价保范围内
+<br><br>
+2. 如涉及【国补+百补】优惠，导致订单不支持一键价保，可人工计算价保金额，并使用小额打款退差
+<br><br>
+亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次价保金额为 {{amount}} 元，预计将在 7 天内 由专人为您操作小额打款退差，还请您耐心等待呢，感谢您的支持~
+<br><br>
+温馨提示：因国家及政府发放补贴、国家及政府补贴波动导致的价差、平台红包（含消费券）、运费、天猫购物券、天猫积分、淘金币抵扣、限量发放的购物券或单品补贴，平台官方补贴（含百亿补贴）等非由本店铺发放的优惠政策导致的价格差异不在价保范围内
+<br><br>
+注：一定要优先引导一键价保，否则容易出现重复退差的问题
+`,
+    yes_yes: `1. 引导客户申请一键价保<br>
+【话术】亲亲，咱们店铺商品是有参与平台价保服务的，查看您的订单目前符合价保，您可以进入：手机淘宝搜索【价保】进入价保中心，一键申请价保哦
+<br><br>
+温馨提示：国家补贴、平台满减活动、优惠券等不包含在价保范围内
+<br><br>
+2. 如涉及【国补+百补】优惠，导致订单不支持一键价保，可人工计算价保金额，并使用小额打款退差
+<br><br>
+亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次价保金额为 {{amount}} 元，预计将在 7 天内 由专人为您操作小额打款退差，还请您耐心等待呢，感谢您的支持~
+<br><br>
+温馨提示：因国家及政府发放补贴、国家及政府补贴波动导致的价差、平台红包（含消费券）、运费、天猫购物券、天猫积分、淘金币抵扣、限量发放的购物券或单品补贴，平台官方补贴（含百亿补贴）等非由本店铺发放的优惠政策导致的价格差异不在价保范围内
+<br><br>
+注：一定要优先引导一键价保，否则容易出现重复退差的问题
+`,
+    yes_no: `1. 引导客户申请一键价保<br>
+【话术】亲亲，咱们店铺商品是有参与平台价保服务的，查看您的订单目前符合价保，您可以进入：手机淘宝搜索【价保】进入价保中心，一键申请价保哦
+<br><br>
+温馨提示：国家补贴、平台满减活动、优惠券等不包含在价保范围内
+<br><br>
+2. 如涉及【国补+百补】优惠，导致订单不支持一键价保，可人工计算价保金额，并使用小额打款退差
+<br><br>
+亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次价保金额为 {{amount}} 元，预计将在 7 天内 由专人为您操作小额打款退差，还请您耐心等待呢，感谢您的支持~
+<br><br>
+温馨提示：因国家及政府发放补贴、国家及政府补贴波动导致的价差、平台红包（含消费券）、运费、天猫购物券、天猫积分、淘金币抵扣、限量发放的购物券或单品补贴，平台官方补贴（含百亿补贴）等非由本店铺发放的优惠政策导致的价格差异不在价保范围内
+<br><br>
+注：一定要优先引导一键价保，否则容易出现重复退差的问题
+`,
+    refundZero: `亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。查看到您之前购买商品的价格很实惠，本次不涉及价保哦~
+<br><br>
+温馨提示：因国家及政府发放补贴、国家及政府补贴波动导致的价差、平台红包（含消费券）、运费、天猫购物券、天猫积分、淘金币抵扣、限量发放的购物券或单品补贴，平台官方补贴（含百亿补贴）等非由本店铺发放的优惠政策导致的价格差异不在价保范围内`,
+  }
+};
+
+
+window.onload = function() {
+    const productSelect = document.getElementById("productSelect");
+    for (let product in productPriceRules) {
+        let opt = document.createElement("option");
+        opt.value = product;
+        opt.textContent = product;
+        productSelect.appendChild(opt);
+    }
+};
+
+function updateVersionOptions() {
+    const product = document.getElementById("productSelect").value;
+    const versionSelect = document.getElementById("versionSelect");
+    versionSelect.innerHTML = '<option value="">--选择版本--</option>';
+    if (!product) return;
+    for (let version in productPriceRules[product]) {
+        let opt = document.createElement("option");
+        opt.value = version;
+        opt.textContent = version;
+        versionSelect.appendChild(opt);
+    }
+}
+
+function autoFillProductPrice() {
+    const product = document.getElementById("productSelect").value;
+    const version = document.getElementById("versionSelect").value;
+    if (!product || !version) return;
+    const priceMap = productPriceRules[product][version];
+    let price = priceMap[currentPlatform] ?? priceMap["All"];
+    if (price != null) {
+        document.getElementById('currentPrice').value = price;
+    } else {
+        alert("该平台此版本暂无价格，请手动输入！");
+    }
+}
+
+function switchPlatform(el, platform) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  currentPlatform = platform;
+  document.getElementById('platformTitle').textContent = `当前平台：${platform}`;
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('moreFields').style.display = 'none';
+}
+
+function checkEligibility(){
+  const orderTimeVal = document.getElementById('orderTime').value;
+  const applyTimeVal = document.getElementById('applyTime').value;
+  const resultBox = document.getElementById('result');
+
+  if (!orderTimeVal || !applyTimeVal) {
+    resultBox.style.display = 'block';
+    resultBox.className = 'result error';
+    resultBox.innerHTML = `⚠️ 请选择支付日期和申请日期`;
+    document.getElementById('moreFields').style.display = 'none';
+    return;
+  }
+  const orderDate = new Date(orderTimeVal);
+  const applyDate = new Date(applyTimeVal);
+  if (applyDate < orderDate) {
+    resultBox.style.display = 'block';
+    resultBox.className = 'result error';
+    resultBox.innerHTML = `⚠️ 申请日期不能早于下单日期`;
+    document.getElementById('moreFields').style.display = 'none';
+    return;
+  }
+  const diffDays = (applyDate - orderDate) / (1000 * 60 * 60 * 24);
+  if (diffDays > 7) {
+    resultBox.style.display = 'block';
+    resultBox.className = 'result error';
+    resultBox.innerHTML = `<strong>❌ 已超过7天价保期</strong><br><br>
+订单签收时间 8-30天<br><br>
+<span style="color:black !important;">1. 引导客户退货重拍<br>
+【话术参考1】咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。查看到您的订单已经超过了店铺的价保周期，实在是抱歉。 
+<br>【话术参考2】同时，同为消费者非常理解您的心情，如您产品符合店铺退货要求，建议您这边申请下退货退款，再重新以活动价购买，您看看这样可以吗？的确是麻烦您了~
+<br><br>
+2. 如客户不接受退货重拍，升级外呼<br>
+抱歉给您带来了不便，我会把您的情况反馈给服务专员来处理，需要您留个电话号码，咱们专员会在1-3天内主动联系您，您看可以吗？来电号码是400开头的电话，您留意接听即可哦~
+<br><br></span>
+
+订单签收时间＞30天<br><br>
+1. 婉拒客户诉求<br>
+咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。查看到您的订单购买比较久了，已经超过了店铺的价保周期，实在是抱歉。 
+<br><br>
+2. 由于您的订单签收时间确实也比较久了，因此无法给您申请价保呢实在抱歉，不过我会把您的情况反馈给服务专员来处理，需要您留个电话号码，咱们专员会在1-3个工作日内主动联系您，您看可以吗？来电号码是400开头的电话，您留意接听即可哦~
+`;
+    document.getElementById('moreFields').style.display = 'none';
+  } else {
+    resultBox.style.display = 'none';
+    document.getElementById('moreFields').style.display = 'block';
+  }
+}
+
+function autoFillProductPrice() {
+    const product = document.getElementById("productSelect").value;
+    const version = document.getElementById("versionSelect").value;
+    const applyTimeVal = document.getElementById('applyTime').value;
+
+    if (!product || !version) return;
+
+
+    const promoStart = new Date("2025-10-09");
+    const promoEnd   = new Date("2025-11-13");
+    const applyDate  = new Date(applyTimeVal);
+
+    if (!applyTimeVal || applyDate < promoStart || applyDate > promoEnd) {
+        alert("当前申请日期不在促销活动期（10月9日-11月13日），请手动输入价格！");
+        return;
+    }
+
+
+    const priceMap = productPriceRules[product][version];
+    let price = priceMap[currentPlatform] ?? priceMap["All"];
+    if (price != null) {
+        document.getElementById('currentPrice').value = price;
+    } else {
+        alert("检测到该产品在此平台不涉及到降价，请复核后手动输入");
+    }
+}
+
+
+function setSubsidyValue(type) {
+  let selectId = type === 'original' ? 'originalSubsidySelect' : 'currentSubsidySelect';
+  let inputId = type === 'original' ? 'originalSubsidy' : 'currentSubsidy';
+  let selectValue = document.getElementById(selectId).value;
+  document.getElementById(inputId).value = (selectValue === 'yes') ? DEFAULT_SUBSIDY : 0;
+}
+
+function calculate(){
+  const originalPrice = parseFloat(document.getElementById('originalPrice').value);
+  const currentPrice = parseFloat(document.getElementById('currentPrice').value);
+  const alreadyRefunded = parseFloat(document.getElementById('alreadyRefunded').value) || 0;
+  if (isNaN(originalPrice) || isNaN(currentPrice)) {
+    alert("请填写金额！");
+    return;
+  }
+  const originalSubsidy = (parseFloat(document.getElementById('originalSubsidy').value) || 0) / 100;
+  const currentSubsidy = (parseFloat(document.getElementById('currentSubsidy').value) || 0) / 100;
+
+  const option1 = originalPrice - currentPrice - alreadyRefunded;
+  const option2 = (originalPrice * (1 - originalSubsidy)) - (currentPrice * (1 - currentSubsidy)) - alreadyRefunded;
+  const refundAmount = Math.min(option1, option2);
+
+  const orderDate = new Date(document.getElementById('orderTime').value);
+  const applyDate = new Date(document.getElementById('applyTime').value);
+  const diffDays = (applyDate - orderDate) / (1000 * 60 * 60 * 24);
+
+  const resultBox = document.getElementById('result');
+  resultBox.style.display = 'block';
+
+  let platformRule = scriptRules[currentPlatform] || {};
+  let msgKey = "";
+
+  if (diffDays > 7) {
+    msgKey = "outOfPeriod";
+  } else if (refundAmount <= 0) {
+    msgKey = "refundZero";
+  } else {
+    const hasOrigSubsidy = originalSubsidy > 0;
+    const hasCurrSubsidy = currentSubsidy > 0;
+    if (!hasOrigSubsidy && !hasCurrSubsidy) msgKey = "no_no";
+    else if (!hasOrigSubsidy && hasCurrSubsidy) msgKey = "no_yes";
+    else if (hasOrigSubsidy && hasCurrSubsidy) msgKey = "yes_yes";
+    else if (hasOrigSubsidy && !hasCurrSubsidy) msgKey = "yes_no";
+  }
+
+  let msg = platformRule[msgKey] || "未匹配到话术，请补充规则。";
+  msg = msg.replace("{{amount}}", refundAmount.toFixed(2));
+
+  let priceInfo = `<p style="font-size:16px;font-weight:bold;color:#d32f2f; margin-bottom:8px;">
+    💰 本次可价保金额：${refundAmount.toFixed(2)} 元
+  </p>`;
+
+  resultBox.className = (msgKey === "refundZero" || msgKey === "outOfPeriod")
+      ? 'result error'
+      : 'result success';
+  resultBox.innerHTML = priceInfo + msg;
+}
+</script>
+</body>
+</html>
