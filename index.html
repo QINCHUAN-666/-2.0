@@ -509,6 +509,24 @@ function checkEligibility(){
     document.getElementById('moreFields').style.display = 'none';
     return;
   }
+
+  // 🎯 特殊期间判断
+  const promoStart = new Date("2025-10-09");
+  const promoEnd   = new Date("2025-11-14");
+  const specialPeriod =
+      orderDate >= promoStart &&
+      applyDate >= promoStart &&
+      applyDate <= promoEnd;
+
+  if (specialPeriod) {
+    // 特殊期间直接显示七天内选项
+    resultBox.style.display = 'none';
+    document.getElementById('moreFields').style.display = 'block';
+    return;
+  }
+
+
+
   const diffDays = (applyDate - orderDate) / (1000 * 60 * 60 * 24);
 if (diffDays > 7) {
     // 拼接带参数的 iframe URL
