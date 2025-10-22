@@ -510,10 +510,26 @@ function checkEligibility(){
     return;
   }
   const diffDays = (applyDate - orderDate) / (1000 * 60 * 60 * 24);
-  if (diffDays > 7) {
+if (diffDays > 7) {
+    // 拼接带参数的 iframe URL
+    const iframeUrl = `https://lighthearted-marigold-b5604a.netlify.app//?payTime=${encodeURIComponent(orderTimeVal)}&applyTime=${encodeURIComponent(applyTimeVal)}`;
+
     resultBox.style.display = 'block';
     resultBox.className = 'result error';
     resultBox.innerHTML = `<strong>❌ 已超过7天价保期</strong><br><br>
+
+<span style="color:#E67E22;font-weight:700;">OP3/OA5 Pro/Osmo 360：可参考如下8-30天 灰度价保指引</span><br><br>
+<iframe
+    src="${iframeUrl}"
+    width="100%"
+    height="600"
+    style="border: none;"
+    allowfullscreen
+    loading="lazy">
+</iframe>
+
+
+<br><br><br><span style="color:#E67E22;font-weight:700;">其余产品请参考以下指引</span><br><br>
 订单签收时间 8-30天<br>
 1. 婉拒客户诉求<br>
 咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。查看到您的订单购买比较久了，已经超过了店铺的价保周期，实在是抱歉。
