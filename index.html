@@ -85,13 +85,13 @@ button:hover {transform: translateY(-1px);box-shadow: 0 8px 20px rgba(21,101,192
         <input type="number" id="currentPrice" placeholder="请输入金额">
         <label class="required">已退差金额 (¥)</label>
         <input type="number" id="alreadyRefunded" placeholder="请输入金额">
-        <label>原订单是否有国补 (%)</label>
+        <label>原订单是否有国补或优惠券 (%)</label>
         <select id="originalSubsidySelect" onchange="setSubsidyValue('original')">
             <option value="no">无</option>
             <option value="yes" selected>有</option>
         </select>
         <div class="inline-input"><input type="number" id="originalSubsidy" value="15"><span>%</span></div>
-        <label>申请价保时是否有国补 (%)</label>
+        <label>申请价保时是否有国补或优惠券 (%)</label>
         <select id="currentSubsidySelect" onchange="setSubsidyValue('current')">
             <option value="no">无</option>
             <option value="yes" selected>有</option>
@@ -103,6 +103,7 @@ button:hover {transform: translateY(-1px);box-shadow: 0 8px 20px rgba(21,101,192
 </div>
 
 <script>
+let isDouble11Period = false;
 const DEFAULT_SUBSIDY = 15;
 let currentPlatform = '天猫';
 
@@ -194,6 +195,13 @@ const productPriceRules = {
 
 const scriptRules = {
   "抖音": {
+
+double11: `亲，请您放心哈，双11活动期 2025年10月9日 00:00 至 11月14日 23:59:59 支付的订单，价保至 11月21日 23:59:59，您可以按照如下方式提交退差申请哈。<br><br>
+申请方式：<br>
+①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可<br><br>
+温馨提示：因国家及政府发放的补贴、红包（含消费券）、限量发放的购物券或单品补等非店铺发放的优惠政策导致的价异不在价保范围内`,
+
     no_no: `原订单为非国补链接：引导客户申请仅退款>退运费    <br>    
 <br>
 亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，您可以按照如下方式提交退差申请哈
@@ -229,6 +237,8 @@ const scriptRules = {
 温馨提示：因国家及政府发放补贴、国家及政府补贴波动导致的价差、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内`
   },
   "商城": {
+
+    double11: `请您放心哈，双11活动期 2025年10月9日 00:00 至 11月14日 23:59:59 支付的订单，可价保至 11月21日 23:59:59。<br><br>您可以进入「我的订单>申请售后>仅退款>退差价」申请价保。差价将会在2-7个工作日原路退还到您的支付账户，请您留意查收哦~`,
     no_no: `引导客户申请仅退款>退运费    
 <br><br>
 亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，
@@ -254,6 +264,13 @@ const scriptRules = {
 温馨提示：因国家及政府发放补贴、国家及政府补贴波动导致的价差不在价保范围内`,
   },
   "拼多多": {
+
+double11: `亲，请您放心哈，双11活动期 2025年10月9日 00:00 至 11月14日 23:59:59 支付的订单，价保至 11月21日 23:59:59，您可以按照如下方式提交退差申请哈。<br><br>
+申请方式：<br>
+①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可<br><br>
+温馨提示：因国家及政府发放的补贴、红包（含消费券）、限量发放的购物券或单品补等非店铺发放的优惠政策导致的价异不在价保范围内`,
+
     no_no: `店铺目前不涉及国补：引导客户申请仅退款>退运费        
 <br><br>
 亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，您可以按照如下方式提交退差申请哈
@@ -301,7 +318,15 @@ const scriptRules = {
 
 
 
-  "微信": {        no_no: `店铺目前不涉及国补：引导客户申请仅退款>退运费        
+  "微信": {        
+
+double11: `亲，请您放心哈，双11活动期 2025年10月9日 00:00 至 11月14日 23:59:59 支付的订单，价保至 11月21日 23:59:59，您可以按照如下方式提交退差申请哈。<br><br>
+申请方式：<br>
+①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可<br><br>
+温馨提示：因国家及政府发放的补贴、红包（含消费券）、限量发放的购物券或单品补等非店铺发放的优惠政策导致的价异不在价保范围内`,
+
+no_no: `店铺目前不涉及国补：引导客户申请仅退款>退运费        
 <br><br>
 亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，您可以按照如下方式提交退差申请哈
 <br><br>
@@ -346,7 +371,15 @@ const scriptRules = {
 温馨提示：因国家及政府发放的补贴、国家及政府补贴波动导致的价差、平台红包（含消费券）、限量发放的购物券或单品补贴等非由本店铺发放的优惠政策导致的价格差异不在价保范围内`,
   },
 
-  "小红书": {        no_no: `店铺目前不涉及国补：引导客户申请仅退款>退运费        
+  "小红书": { 
+
+double11: `亲，请您放心哈，双11活动期 2025年10月9日 00:00 至 11月14日 23:59:59 支付的订单，价保至 11月21日 23:59:59，您可以按照如下方式提交退差申请哈。<br><br>
+申请方式：<br>
+①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可<br><br>
+温馨提示：因国家及政府发放的补贴、红包（含消费券）、限量发放的购物券或单品补等非店铺发放的优惠政策导致的价异不在价保范围内`,
+
+       no_no: `店铺目前不涉及国补：引导客户申请仅退款>退运费        
 <br><br>
 亲亲，咱们店铺是提供 7 天价保服务的，自订单支付时间起 7 天内（7*24小时），因同一商品出现商家官方降价，是支持价保的。本次退差金额为 {{amount}} 元，您可以按照如下方式提交退差申请哈
 <br><br>
@@ -392,6 +425,18 @@ const scriptRules = {
   },
 
   "天猫": {
+
+
+    double11: `<strong style="color:#E67E22;">1. 引导客户申请一键价保</strong><br><br>
+亲亲，大促期会不定期上线限时活动哈，请放心，咱们店铺是提供价保服务的，您可以进入：手机淘宝搜索【价保】进入价保中心，一键申请价保哦<br>
+温馨提示：因国家及政府补贴、红包（含消费券）、天猫购物券、天猫积分、淘金币抵扣、限量发放的单品补贴、平台官方补贴（含百亿补贴）等非店铺发放的优惠政策导致的价异不在价保范围内<br><br>
+<strong style="color:#E67E22;">2. 10月9日0点-10月15日20点订单仅支持7天价保，如客户不支持一键价保，人工退差</strong><br><br>
+由于天猫平台双11活动开始时间为10月15日，因此平台价保政策也是从10月15日开始生效的呢，不过您别担心，您可以按照如下方式提交退差申请哈<br>
+申请方式：<br>
+①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可<br><br>
+温馨提示：因国家及政府补贴、红包（含消费券）、天猫购物券、天猫积分、淘金币抵扣、限量发放的单品补贴、平台官方补贴（含百亿补贴）等非店铺发放的优惠政策导致的价异不在价保范围内`,
+
     no_no: `引导客户申请一键价保<br>
 【话术】亲亲，咱们店铺商品是有参与平台价保服务的，查看您的订单目前符合价保，您可以进入：手机淘宝搜索【价保】进入价保中心，一键申请价保哦
 <br><br>
@@ -511,23 +556,28 @@ function checkEligibility(){
   }
 
   // 🎯 特殊期间判断
-  const promoStart = new Date("2025-10-09");
-  const promoEnd   = new Date("2025-11-14");
-  const specialPeriod =
-      orderDate >= promoStart &&
-      applyDate >= promoStart &&
-      applyDate <= promoEnd;
+const promoStart = new Date("2025-10-09");
+const promoEnd   = new Date("2025-11-14");
 
-  if (specialPeriod) {
-    // 特殊期间直接显示七天内选项
+if (orderDate >= promoStart && orderDate <= promoEnd &&
+    applyDate >= promoStart && applyDate <= promoEnd) {
+    isDouble11Period = true;
+} else {
+    isDouble11Period = false;
+}
+
+if (isDouble11Period) {
     resultBox.style.display = 'none';
     document.getElementById('moreFields').style.display = 'block';
+    // 在后续计算的时候用 isDouble11Period 来选择双11话术
     return;
-  }
+}
 
 
 
   const diffDays = (applyDate - orderDate) / (1000 * 60 * 60 * 24);
+
+
 if (diffDays > 7) {
     // 拼接带参数的 iframe URL
     const iframeUrl = `https://lighthearted-marigold-b5604a.netlify.app//?payTime=${encodeURIComponent(orderTimeVal)}&applyTime=${encodeURIComponent(applyTimeVal)}`;
@@ -611,27 +661,41 @@ function calculate(){
   const originalPrice = parseFloat(document.getElementById('originalPrice').value);
   const currentPrice = parseFloat(document.getElementById('currentPrice').value);
   const alreadyRefunded = parseFloat(document.getElementById('alreadyRefunded').value) || 0;
+  
   if (isNaN(originalPrice) || isNaN(currentPrice)) {
     alert("请填写金额！");
     return;
   }
+  
   const originalSubsidy = (parseFloat(document.getElementById('originalSubsidy').value) || 0) / 100;
-  const currentSubsidy = (parseFloat(document.getElementById('currentSubsidy').value) || 0) / 100;
-
+  const currentSubsidy  = (parseFloat(document.getElementById('currentSubsidy').value) || 0) / 100;
+  
   const option1 = originalPrice - currentPrice - alreadyRefunded;
   const option2 = (originalPrice * (1 - originalSubsidy)) - (currentPrice * (1 - currentSubsidy)) - alreadyRefunded;
   const refundAmount = Math.min(option1, option2);
-
+  
   const orderDate = new Date(document.getElementById('orderTime').value);
   const applyDate = new Date(document.getElementById('applyTime').value);
-  const diffDays = (applyDate - orderDate) / (1000 * 60 * 60 * 24);
+  const diffDays  = (applyDate - orderDate) / (1000 * 60 * 60 * 24);
+  
+  const resultBox    = document.getElementById('result');
+  let platformRule   = scriptRules[currentPlatform] || {};
+  
+  // 先处理双十一期专用话术
+  if (isDouble11Period) {
+      let msg = platformRule.double11 || "当前平台没有设置双十一话术";
+      msg = msg.replace("{{amount}}", refundAmount.toFixed(2));
+      let priceInfo = `<p style="font-size:16px;font-weight:bold;color:#d32f2f;margin-bottom:8px;">
+          💰 本次可价保金额：${refundAmount.toFixed(2)} 元
+      </p>`;
+      resultBox.className = 'result success';
+      resultBox.style.display = 'block';
+      resultBox.innerHTML = priceInfo + msg;
+      return;
+  }
 
-  const resultBox = document.getElementById('result');
-  resultBox.style.display = 'block';
-
-  let platformRule = scriptRules[currentPlatform] || {};
+  // 普通周期话术逻辑
   let msgKey = "";
-
   if (diffDays > 7) {
     msgKey = "outOfPeriod";
   } else if (refundAmount <= 0) {
@@ -644,17 +708,16 @@ function calculate(){
     else if (hasOrigSubsidy && hasCurrSubsidy) msgKey = "yes_yes";
     else if (hasOrigSubsidy && !hasCurrSubsidy) msgKey = "yes_no";
   }
-
+  
   let msg = platformRule[msgKey] || "未匹配到话术，请补充规则。";
   msg = msg.replace("{{amount}}", refundAmount.toFixed(2));
-
+  
   let priceInfo = `<p style="font-size:16px;font-weight:bold;color:#d32f2f; margin-bottom:8px;">
     💰 本次可价保金额：${refundAmount.toFixed(2)} 元
   </p>`;
-
-  resultBox.className = (msgKey === "refundZero" || msgKey === "outOfPeriod")
-      ? 'result error'
-      : 'result success';
+  
+  resultBox.className = (msgKey === "refundZero" || msgKey === "outOfPeriod") ? 'result error' : 'result success';
+  resultBox.style.display = 'block';
   resultBox.innerHTML = priceInfo + msg;
 }
 </script>
