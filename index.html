@@ -61,9 +61,12 @@ button:hover {transform: translateY(-1px);box-shadow: 0 8px 20px rgba(21,101,192
     <div class="tab" onclick="switchPlatform(this, '微信')">微信</div>
     <div class="tab" onclick="switchPlatform(this, '小红书')">小红书</div>
     <div class="tab" onclick="switchPlatform(this, '商城')">商城</div>
+    <div class="tab" onclick="switchPlatform(this, '加码活动')">OM7加码</div>
 </div>
 <div class="container">
     <h3 id="platformTitle" style="margin-top:0;color:var(--main-blue-dark)">当前平台：天猫</h3>
+
+<div id="dateFields">
     <label class="required">支付时间</label>
     <div class="date-group" onclick="document.getElementById('orderTime').showPicker()">
         <input type="date" id="orderTime">
@@ -73,6 +76,30 @@ button:hover {transform: translateY(-1px);box-shadow: 0 8px 20px rgba(21,101,192
         <input type="date" id="applyTime">
     </div>
     <button onclick="checkEligibility()">下一步</button>
+</div>
+
+
+
+<div id="activityPlatformSelectBox" style="display:none;">
+    <label class="required">请选择加码活动的平台</label>
+    <select id="activityPlatformSelect" onchange="updateConditionOptions()">
+        <option value="">--请选择平台--</option>
+        <option value="天猫">天猫</option>
+        <option value="京东自营">京东自营</option>
+        <option value="抖音">抖音</option>
+        <option value="拼多多">拼多多</option>
+    </select>
+
+    <label class="required">请选择订单条件</label>
+    <select id="activityConditionSelect">
+        <option value="">--请选择条件--</option>
+    </select>
+
+    <button onclick="checkActivityRule()">查询方案</button>
+</div>
+
+<div id="result" class="result" style="display:none;"></div>
+
 
     <div id="moreFields" style="display:none;">
         <label class="required">产品</label>
@@ -98,6 +125,7 @@ button:hover {transform: translateY(-1px);box-shadow: 0 8px 20px rgba(21,101,192
         </select>
         <div class="inline-input"><input type="number" id="currentSubsidy" value="15"><span>%</span></div>
         <button onclick="calculate()">计算退差金额并生成话术</button>
+    <div id="resultBottom" class="result" style="display:none;"></div>
     </div>
     <div id="result" class="result" style="display:none;"></div>
 </div>
@@ -191,6 +219,294 @@ const productPriceRules = {
         "Power 2000": { All: 4699 }
     }
 };
+
+
+
+
+const activityRules = {
+  "天猫": [
+    {
+      name: "【大促一键价保】",
+      condition: orderDate => orderDate >= new Date("2025-10-15T20:00"),
+      message: `亲亲，大促期会不定期上线限时活动哈，请放心，咱们店铺是提供价保服务的...
+      （这里填你的完整天猫一键价保话术）`
+    },
+    {
+      name: "【一键价保失败退差】",
+      condition: orderDate => orderDate >= new Date("2025-10-09") && orderDate < new Date("2025-10-15T20:00"),
+      message: `由于天猫平台双11活动开始时间为10月15日...
+      （这里填你的完整失败退差话术）`
+    },
+    {
+      name: "【价保超7天】",
+      condition: diffDays => diffDays > 7 && diffDays <= 30 && orderDate <= new Date("2025-10-08"),
+      message: `店铺是提供 7 天价保服务的...
+      （这里填你的完整超7天天猫话术）`
+    },
+    {
+      name: "【价保周边】",
+      condition: diffDays => diffDays > 15 && diffDays <= 30,
+      message: `理解您的心情，我帮您申请一份DJI周边...`
+    },
+    {
+      name: "【价保外呼】",
+      condition: diffDays => diffDays > 15 && diffDays <= 30,
+      message: `抱歉未能达到您的期望，我帮您升级到外呼...`
+    }
+  ],
+  "京东自营": [
+    {
+      name: "【价保7天内】",
+      condition: diffDays => diffDays <= 7,
+      message: `京东App 我的-客户服务-价格保护 一键申请...`
+    },
+    {
+      name: "【价保超7天】",
+      condition: diffDays => diffDays > 7 && diffDays <= 15,
+      message: `京东平台7天价保期已过...`
+    },
+    {
+      name: "【价保周边】",
+      condition: diffDays => diffDays > 15 && diffDays <= 30,
+      message: `理解您的心情，我帮您申请DJI周边...`
+    },
+    {
+      name: "【价保外呼】",
+      condition: diffDays => diffDays > 15 && diffDays <= 30,
+      message: `我帮您升级到外呼专员联系...`
+    }
+  ],
+  "抖音": [
+    {
+      name: "【M7P店铺券价保】",
+      condition: orderDate => orderDate >= new Date("2025-10-09"),
+      message: `双11大促期...店铺券可价保...`
+    },
+    {
+      name: "【M7P平台券价保婉拒】",
+      condition: orderDate => orderDate >= new Date("2025-10-09"),
+      message: `平台券不支持价保...`
+    },
+    {
+      name: "【M7P价保退货】",
+      condition: diffDays => diffDays > 15 && diffDays <= 30,
+      message: `建议退货重拍...`
+    }
+  ],
+  "拼多多": [
+    {
+      name: "【价保双11】",
+      condition: orderDate => orderDate >= new Date("2025-10-09"),
+      message: `双11活动期...可价保...`
+    },
+    {
+      name: "【价保超7天】",
+      condition: diffDays => diffDays > 7 && diffDays <= 30,
+      message: `超期价保...`
+    },
+    {
+      name: "【价保周边】",
+      condition: diffDays => diffDays > 15 && diffDays <= 30,
+      message: `申请DJI周边...`
+    },
+    {
+      name: "【价保外呼】",
+      condition: diffDays => diffDays > 15 && diffDays <= 30,
+      message: `升级外呼...`
+    }
+  ]
+};
+
+
+
+// 各平台的条件选项
+const activityOptions = {
+  "天猫": [
+    "10月9日 0点之后支付的订单",
+    "10月8日及之前的订单，订单签收30天内",
+    "10月8日及之前的订单，订单签收＞30天"
+  ],
+  "京东自营": [
+    "订单签收时间距离联系时间≤7天",
+    "订单签收时间距离联系时间8-30天内",
+    "订单签收时间距离联系时间＞30天内"
+  ],
+  "抖音": [
+    "10月9日 0点之后支付的订单",
+    "10月8日及之前支付的订单 & 订单签收时间距离联系时间 30天内",
+    "10月8日及之前支付的订单 & 订单签收时间距离联系时间＞30天"
+  ],
+  "拼多多": [
+    "10月9日 0点之后支付的订单",
+    "10月8日及之前的订单，订单签收30天内",
+    "10月8日及之前的订单，订单签收＞30天"
+  ]
+};
+
+// 加码活动完整数据（这里只示例部分内容，你需要把表格完整填充进来）
+const activityData = {
+  "天猫": {
+    "10月9日 0点之后支付的订单": {
+      policy: "价保双11，10月9日0点后支付的订单，活动期内可退差",
+      scheme: `<br>1.10月15日20点后的订单，引导客户申请一键价保
+<br><br>2.10月9日0点-10月15日20点订单仅支持7天价保，如客户不支持一键价保，人工退差`,
+      keyword: "【大促一键价保】",
+      talk: `<br>【大促一键价保】<br><br>亲亲，大促期会不定期上线限时活动哈，请放心，咱们店铺是提供价保服务的，您可以进入：手机淘宝搜索【价保】进入价保中心，一键申请价保哦
+<br>温馨提示：因国家及政府补贴、红包（含消费券）、天猫购物券、天猫积分、淘金币抵扣、限量发放的单品补贴、平台官方补贴（含百亿补贴）等非店铺发放的优惠政策导致的价异不在价保范围内<br><br>
+【一键价保失败退差】<br><br>由于天猫平台双11活动开始时间为10月15日，因此平台价保政策也是从10月15日开始生效的呢，不过您别担心，您可以按照如下方式提交退差申请哈<br>
+申请方式：<br>
+①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>
+②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可
+<br><br>温馨提示：因国家及政府补贴、红包（含消费券）、天猫购物券、天猫积分、淘金币抵扣、限量发放的单品补贴、平台官方补贴（含百亿补贴）等非店铺发放的优惠政策导致的价异不在价保范围内`
+    },
+    "10月8日及之前的订单，订单签收30天内": {
+      policy: "超期价保，灰度补偿",
+      scheme: `<br>1. 优先婉拒客户诉求
+<br>2. 如客户不接受：① 可提供DJI周边；② 如客户不接受周边，可升级外呼提供差额产品优惠券（不超过70元）`,
+      keyword: "【价保超7天】",
+      talk: `<br>【价保超7天】<br>店铺是提供 7 天价保服务的，查看到目前您的订单支付时间距离申请价保时间已经超过 7 天 （7*24小时），已经超过了店铺的价保周期，实在是抱歉呢<br><br>
+【价保周边】<br>理解您的心情，考虑到您的购物体验，我帮您特殊申请一份咱们专属定做的 DJI 精美周边礼品，别的地方花钱都是买不到的哦, 您看看可以吗？<br><br>
+【价保外呼】<br>抱歉未能达到您的期望，也希望您能谅解。麻烦您提供下姓名和联系方式，我这边升级给我们服务专员，会在3-5个工作日内电话和您沟通一下方案，您看可以吗？`
+    },
+    "10月8日及之前的订单，订单签收＞30天": {
+      policy: "无任何补偿方案",
+      scheme: `<br>订单签收30天以上，婉拒用户诉求，无补偿方案。如有社媒风险等极端情况，升级客诉`,
+      keyword: "【价保超30天】",
+      talk: `<br>【价保超30天】<br>您好，店铺是提供7天价保服务的，但查看到目前您的订单签收时间已比较久，超过了店铺的价保周期，实在是抱歉呢<br><br>
+【婉拒2次】<br>理解您的心情，活动是不定期举行的，超过价保周期的订单，确实无法提供价保服务呢<br><br>
+【客诉升级】<br>很抱歉给您带来不好的体验，为了帮助您解决问题，我会把您的情况反馈给服务专员来处理，需要您留个联系方式，咱们专员会主动联系您，您看可以吗？来电号码是400开头的电话，您留意接听即可哦~`
+    }
+  },
+  "京东自营": {
+    "订单签收时间距离联系时间≤7天": {
+      policy: "价保7天，签收7天内申请价保，可退差",
+      scheme: `<br>7天价保，引导用户自助申请价差`,
+      keyword: "【价保7天内】",
+      talk: `<br>亲亲，大促期会不定期上线限时活动哈，还请您理解~ 您可以进入京东App端：我的-客户服务-价格保护，申请一键价保退差哦~<br><br>
+温馨提示：因国家及政府补贴、红包（含消费券）、限量发放的单品补贴、平台官方补贴（含百亿补贴/秒杀）等非店铺发放的优惠政策导致的价异不在价保范围内`
+    },
+    "订单签收时间距离联系时间8-30天内": {
+      policy: "超期价保，灰度补偿",
+      scheme: `<br>1. 优先婉拒客户诉求
+<br>2. 如客户不接受：① 可提供DJI周边；② 可升级外呼提供差额产品优惠券（不超过70元）`,
+      keyword: "【价保超7天】",
+      talk: `<br>【价保超7天】<br>京东平台是提供 7 天价保服务的，查看到目前您的订单签收次日0点起距离申请价保时间已经超过 7 天，已经超过了平台价保周期，实在是抱歉呢<br><br>
+【价保周边】<br>理解您的心情，考虑到您的购物体验，我帮您特殊申请一份咱们专属定做的 DJI 精美周边礼品，别的地方花钱都是买不到的哦, 您看看可以吗？<br><br>
+【价保外呼】<br>抱歉未能达到您的期望，也希望您能谅解。麻烦您提供下姓名和联系方式，我这边升级给我们服务专员，会在3-5个工作日内电话和您沟通一下方案，您看可以吗？`
+    },
+    "订单签收时间距离联系时间＞30天内": {
+      policy: "无任何补偿方案",
+      scheme: `<br>订单签收30天以上，婉拒用户诉求，无补偿方案。如有社媒风险等极端情况，升级客诉`,
+      keyword: "【价保超30天】",
+      talk: `<br>【价保超7天】<br>您好，店铺是提供7天价保服务的，但查看到目前您的订单签收时间已比较久，超过了店铺的价保周期，实在是抱歉呢<br><br>
+【婉拒2次】<br>理解您的心情，活动是不定期举行的，超过价保周期的订单，确实无法提供价保服务呢<br><br>
+【客诉升级】<br>很抱歉给您带来不好的体验，为了帮助您解决问题，我会把您的情况反馈给服务专员来处理，需要您留个联系方式，咱们专员会主动联系您，您看可以吗？来电号码是400开头的电话，您留意接听即可哦~`
+    }
+  },
+  "抖音": {
+    "10月9日 0点之后支付的订单": {
+      policy: "店铺优惠券9.9元可价保，消费券60元不价保",
+      scheme: `<br>1. 店铺优惠9.9元可价保退差，10月9日0点后支付的订单，价保至11月21日
+<br>2. 平台消费券不支持价保，婉拒
+<br>3. 如客户不接受，可退货重拍`,
+      keyword: "【M7P店铺券价保】",
+      talk: `<br>【M7P店铺券价保】<br>亲，双11大促期间2025年10月9日00:00-11月14日23:59:59支付的订单，价保至11月21日23:59:59，您订单中的店铺优惠券价差 9.9 元 是可以价保的，您可以在抖音APP-我的订单-申请售后-申请仅退款-与商家协商一致退款-输入差价金额即可，我们会尽快为您审核的~<br><br>
+另外的60元优惠是平台额外发放的限时限量满减券，不是每个用户都能领取到的哈，是不支持价保的呢，还请您理解～<br><br>
+【M7P平台券价保婉拒】<br>作为消费者我们理解您的心情，也希望您以优惠的价格购买到咱们的商品，因平台优惠并非官方价格变动，不在价保范围内，希望您谅解~<br><br>
+【M7P价保退货】<br>如符合店铺退货要求，建议退货退款后重新下单，您看看可以吗？`
+    },
+"10月8日及之前支付的订单 & 订单签收时间距离联系时间 30天内": {
+  policy: "超期价保/平台消费券不支持价保",
+  scheme: `<br>1. 超期价保无补偿<br>
+2. 如客户不接受，可退货重拍`,
+  keyword: "【M7P价保超期】",
+  talk: `<br>【M7P价保超期】<br><br>店铺是提供 7 天价保服务的，查看到目前您的订单支付时间距离申请价保时间已经超过 7 天 （7*24小时），且平台消费券不在价保范围内，实在是抱歉呢
+<br><br>【M7P平台券价保婉拒】<br>作为消费者我们理解您的心情，也希望您以优惠的价格购买到咱们的商品，因平台优惠并非是官方价格变动，不在价保范围内，确实无法申请价保的，希望您谅解~
+<br><br>【M7P价保退货】<br>同为消费者非常理解您的心情，如您产品符合店铺退货要求，建议您这边申请下退货退款，再重新以活动价购买，您看看这样可以吗？的确是麻烦您了~`
+},
+    "10月8日及之前支付的订单 & 订单签收时间距离联系时间＞30天": {
+      policy: "无任何补偿方案",
+      scheme: `<br>订单签收30天以上，婉拒用户诉求，无补偿方案。如有社媒风险等极端情况，升级客诉`,
+      keyword: "【价保超30天】",
+      talk: `<br>【价保超7天】<br>您好，店铺是提供7天价保服务的，但查看到目前您的订单签收时间已比较久，超过了店铺的价保周期，实在是抱歉呢<br><br>
+【婉拒2次】<br>理解您的心情，活动是不定期举行的，超过价保周期的订单，确实无法提供价保服务呢<br><br>
+【客诉升级】<br>很抱歉给您带来不好的体验，为了帮助您解决问题，我会把您的情况反馈给服务专员来处理，需要您留个联系方式，咱们专员会主动联系您，您看可以吗？来电号码是400开头的电话，您留意接听即可哦~`
+    }
+  },
+  "拼多多": {
+    "10月9日 0点之后支付的订单": {
+      policy: "价保双11，10月9日0点后支付的订单，活动期内，可退差",
+      scheme: `<br>价保双11，10月9日0点后支付的订单，活动期内，可退差`,
+      keyword: "【价保双11】",
+      talk: `<br>【价保双11】<br>亲，双11大促期间2025年10月9日00:00-11月14日23:59:59支付的订单，价保至11月21日23:59:59，您可以按照如下方式提交退差申请哈，活动差价以到手价差为准。<br>申请方式：<br>①如已收到货：订单先确认收货，然后申请仅退款-退运费-输入差价金额即可<br>②如未收到货：待收到货后检查无误，当天确认收货，然后申请仅退款-退运费-输入差价金额即可<br><br>
+温馨提示：因国家及政府发放的补贴、红包（含消费券）、限量发放的购物券或单品补等非店铺发放的优惠政策导致的价异不在价保范围内`
+    },
+"10月8日及之前的订单，订单签收30天内": {
+  policy: "超期价保，灰度补偿",
+  scheme: `<br>1. 优先婉拒客户诉求
+<br>2. 如客户不接受，订单签收30天内：
+<br>① 可提供DJI周边
+<br>② 如客户不接受周边，可升级外呼提供差额产品优惠券（产品优惠券不超过70元）`,
+  keyword: "【价保超7天】",
+  talk: `<br>【价保超7天】<br><br>店铺是提供 7 天价保服务的，查看到目前您的订单支付时间距离申请价保时间已经超过 7 天 （7*24小时），已经超过了店铺的价保周期，实在是抱歉呢
+<br><br>【价保周边】<br>理解您的心情，考虑到您的购物体验，我帮您特殊申请一份咱们专属定做的 DJI 精美周边礼品，别的地方花钱都是买不到的哦, 您看看可以吗？
+<br><br>【价保外呼】<br>抱歉未能达到您的期望，也希望您能谅解。麻烦您提供下姓名和联系方式，我这边升级给我们服务专员，会在3-5个工作日内电话和您沟通一下方案，您看可以吗？`
+},
+    "10月8日及之前的订单，订单签收＞30天": {
+      policy: "无任何补偿方案",
+      scheme: `<br>订单签收30天以上，婉拒用户诉求，无补偿方案。如有社媒风险等极端情况，升级客诉`,
+      keyword: "【价保超30天】",
+      talk: `<br>【价保超30天】<br>您好，店铺是提供7天价保服务的，但查看到目前您的订单签收时间已比较久，超过了店铺的价保周期，实在是抱歉呢<br><br>
+【婉拒2次】<br>理解您的心情，活动是不定期举行的，超过价保周期的订单，确实无法提供价保服务呢<br><br>
+【客诉升级】<br>很抱歉给您带来不好的体验，为了帮助您解决问题，我会把您的情况反馈给服务专员来处理，需要您留个联系方式，咱们专员会主动联系您，您看可以吗？来电号码是400开头的电话，您留意接听即可哦~`
+    }
+  }
+};
+
+// 更新条件列表
+function updateConditionOptions(){
+  const platform = document.getElementById('activityPlatformSelect').value;
+  const conditionSelect = document.getElementById('activityConditionSelect');
+  conditionSelect.innerHTML = '<option value="">--请选择条件--</option>';
+  if (!platform) return;
+  activityOptions[platform].forEach(opt=>{
+    const o = document.createElement('option');
+    o.value = opt;
+    o.textContent = opt;
+    conditionSelect.appendChild(o);
+  });
+}
+
+// 查询并显示方案
+function checkActivityRule(){
+  const platform = document.getElementById('activityPlatformSelect').value;
+  const condition = document.getElementById('activityConditionSelect').value;
+  const resultBox = document.getElementById('result');
+
+  if (!platform || !condition) {
+    resultBox.className = 'result error';
+    resultBox.style.display = 'block';
+    resultBox.innerHTML = "⚠️ 请选择平台和条件";
+    return;
+  }
+
+  const rule = activityData[platform]?.[condition];
+  if (!rule) {
+    resultBox.className = 'result error';
+    resultBox.style.display = 'block';
+    resultBox.innerHTML = "未匹配到该条件的方案";
+    return;
+  }
+
+  resultBox.className = 'result success';
+  resultBox.style.display = 'block';
+  resultBox.innerHTML = `
+    <p><strong>价保政策：</strong>${rule.policy}</p>
+    <p><strong>处理方案：</strong>${rule.scheme}</p>
+    <p><strong>参考话术：</strong>${rule.talk || ''}</p>
+  `;
+}
+
 
 
 const scriptRules = {
@@ -498,6 +814,34 @@ window.onload = function() {
     }
 };
 
+function showError(msg) {
+    const resultBox = document.getElementById('result');
+    resultBox.className = 'result error';
+    resultBox.style.display = 'block';
+    resultBox.innerHTML = msg;
+    document.getElementById('moreFields').style.display = 'none';
+}
+
+
+function checkUniversalOver30Days(orderDate, applyDate) {
+    const payLimit = new Date("2025-10-04");
+    const diffDays = (applyDate - orderDate) / (1000 * 60 * 60 * 24); // 改成 * 而不是 _
+    if (orderDate <= payLimit && diffDays > 30) {
+        const resultBox = document.getElementById('result');
+        resultBox.className = 'result error';
+        resultBox.style.display = 'block';
+        resultBox.innerHTML =`
+            <strong>【价保超30天】</strong><br>您好，店铺是提供 7 天价保服务的，但查看到目前您的订单签收时间已比较久，超过了店铺的价保周期，实在是抱歉呢<br><br>
+            <strong>【婉拒2次】</strong><br>理解您的心情，活动是不定期举行的，超过价保周期的订单，确实无法提供价保服务呢<br><br>
+            <strong>【客诉升级】</strong><br>很抱歉给您带来不好的体验，为了帮助您解决问题，我会把您的情况反馈给服务专员来处理，需要您留个联系方式，咱们专员会主动联系您，您看可以吗？来电号码是400开头的电话，您留意接听即可哦~
+        `;
+        document.getElementById('moreFields').style.display = 'none';
+        return true;
+    }
+    return false;
+}
+
+
 function updateVersionOptions() {
     const product = document.getElementById("productSelect").value;
     const versionSelect = document.getElementById("versionSelect");
@@ -525,53 +869,100 @@ function autoFillProductPrice() {
 }
 
 function switchPlatform(el, platform) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  currentPlatform = platform;
-  document.getElementById('platformTitle').textContent = `当前平台：${platform}`;
-  document.getElementById('result').style.display = 'none';
-  document.getElementById('moreFields').style.display = 'none';
+    // 切换 tab 激活状态
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+
+    currentPlatform = platform;
+
+    // ======== 设置标题 ========
+    if (platform === "加码活动") {
+        document.getElementById('platformTitle').innerHTML =
+            `OM7P 限时优惠69.9元<br>
+            活动平台及形式：天猫（百亿补贴69.9）、京东自营（限时9折优惠券）、抖音（消费券60+店铺优惠9.9）、拼多多（店铺优惠券699-69.91）<br>
+            活动时间：2025年10月30日 20点 - 11月3日 24点`;
+    } else {
+        document.getElementById('platformTitle').textContent = `当前平台：${platform}`;
+    }
+
+    // ======== 清空并隐藏结果区域 ========
+    const resultBox = document.getElementById('result');
+    resultBox.style.display = 'none';
+    resultBox.innerHTML = '';
+
+    const bottomBox = document.getElementById('resultBottom');
+    bottomBox.style.display = 'none';
+    bottomBox.innerHTML = '';
+
+    // 隐藏底部输入区
+    document.getElementById('moreFields').style.display = 'none';
+
+    // ======== 显示对应区域 ========
+    if (platform === "加码活动") {
+        document.getElementById('dateFields').style.display = 'none';
+        document.getElementById('activityPlatformSelectBox').style.display = 'block';
+    } else {
+        document.getElementById('dateFields').style.display = 'block';
+        document.getElementById('activityPlatformSelectBox').style.display = 'none';
+    }
 }
 
 function checkEligibility(){
-  const orderTimeVal = document.getElementById('orderTime').value;
-  const applyTimeVal = document.getElementById('applyTime').value;
-  const resultBox = document.getElementById('result');
+    const orderTimeVal = document.getElementById('orderTime').value;
+    const applyTimeVal = document.getElementById('applyTime').value;
+    const resultBox = document.getElementById('result');
 
-  if (!orderTimeVal || !applyTimeVal) {
-    resultBox.style.display = 'block';
-    resultBox.className = 'result error';
-    resultBox.innerHTML = `⚠️ 请选择支付日期和申请日期`;
-    document.getElementById('moreFields').style.display = 'none';
-    return;
-  }
-  const orderDate = new Date(orderTimeVal);
-  const applyDate = new Date(applyTimeVal);
-  if (applyDate < orderDate) {
-    resultBox.style.display = 'block';
-    resultBox.className = 'result error';
-    resultBox.innerHTML = `⚠️ 申请日期不能早于下单日期`;
-    document.getElementById('moreFields').style.display = 'none';
-    return;
-  }
+    const orderDate = new Date(orderTimeVal);
+    const applyDate = new Date(applyTimeVal);
 
-  // 🎯 特殊期间判断
-const promoStart = new Date("2025-10-09");
-const promoEnd   = new Date("2025-11-14");
+    if (currentPlatform === "加码活动") {
+        const selectedPlatform = document.getElementById("activityPlatformSelect").value;
+        if (!selectedPlatform) {
+            showError("⚠️ 请选择加码活动的平台");
+            return;
+        }
+        if (!orderTimeVal) {
+            showError("⚠️ 请选择支付时间");
+            return;
+        }
+        let diffDays = 0;
+        if (applyTimeVal) {
+            diffDays = (applyDate - orderDate) / (1000 * 60 * 60 * 24);
+        }
+        const rules = activityRules[selectedPlatform] || [];
+        let matchedRule = rules.find(r => r.condition(orderDate, diffDays));
+        if (matchedRule) {
+            resultBox.className = 'result success';
+            resultBox.style.display = 'block';
+            resultBox.innerHTML = `<strong>${matchedRule.name}</strong><br>${matchedRule.message}`;
+        } else {
+            showError("未匹配到加码活动规则");
+        }
+        return;
+    }
 
-if (orderDate >= promoStart && orderDate <= promoEnd &&
-    applyDate >= promoStart && applyDate <= promoEnd) {
-    isDouble11Period = true;
-} else {
-    isDouble11Period = false;
-}
+    if (applyDate < orderDate) {
+        resultBox.style.display = 'block';
+        resultBox.className = 'result error';
+        resultBox.innerHTML = `⚠️ 申请日期不能早于下单日期`;
+        document.getElementById('moreFields').style.display = 'none';
+        return;
+    }
 
-if (isDouble11Period) {
-    resultBox.style.display = 'none';
-    document.getElementById('moreFields').style.display = 'block';
-    // 在后续计算的时候用 isDouble11Period 来选择双11话术
-    return;
-}
+    const promoStart = new Date("2025-10-09");
+    const promoEnd   = new Date("2025-11-14");
+    if (orderDate >= promoStart && orderDate <= promoEnd &&
+        applyDate >= promoStart && applyDate <= promoEnd) {
+        isDouble11Period = true;
+    } else {
+        isDouble11Period = false;
+    }
+
+    if (isDouble11Period) {
+        resultBox.style.display = 'none';
+        document.getElementById('moreFields').style.display = 'block';
+        return;
+    }
 
 
 
@@ -681,6 +1072,9 @@ function calculate(){
   const resultBox    = document.getElementById('result');
   let platformRule   = scriptRules[currentPlatform] || {};
   
+
+  const bottomBox = document.getElementById('resultBottom');
+
   // 先处理双十一期专用话术
   if (isDouble11Period) {
       let msg = platformRule.double11 || "当前平台没有设置双十一话术";
@@ -688,9 +1082,9 @@ function calculate(){
       let priceInfo = `<p style="font-size:16px;font-weight:bold;color:#d32f2f;margin-bottom:8px;">
           💰 本次可价保金额：${refundAmount.toFixed(2)} 元
       </p>`;
-      resultBox.className = 'result success';
-      resultBox.style.display = 'block';
-      resultBox.innerHTML = priceInfo + msg;
+bottomBox.className = 'result success';
+bottomBox.style.display = 'block';
+bottomBox.innerHTML = priceInfo + msg;
       return;
   }
 
@@ -716,9 +1110,9 @@ function calculate(){
     💰 本次可价保金额：${refundAmount.toFixed(2)} 元
   </p>`;
   
-  resultBox.className = (msgKey === "refundZero" || msgKey === "outOfPeriod") ? 'result error' : 'result success';
-  resultBox.style.display = 'block';
-  resultBox.innerHTML = priceInfo + msg;
+bottomBox.className = (msgKey === "refundZero" || msgKey === "outOfPeriod") ? 'result error' : 'result success';
+bottomBox.style.display = 'block';
+bottomBox.innerHTML = priceInfo + msg;
 }
 </script>
 </body>
